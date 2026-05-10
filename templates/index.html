@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Priva VP9508 — İstixana Sensor Analitikası</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #0f1629;
+    --bg-card: #131d35;
+    --bg-card-hover: #162040;
+    --border: #1e2d50;
+    --border-bright: #2a3f6f;
+    --text-primary: #e8eeff;
+    --text-secondary: #7a8ab8;
+    --text-muted: #4a5a88;
+    --accent-green: #00d4aa;
+    --accent-blue: #4d8ef0;
+    --accent-red: #ff6b6b;
+    --accent-purple: #a29bfe;
+    --glow-green: rgba(0,212,170,0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Space Grotesk', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px); background-size: 60px 60px; opacity: .22; pointer-events: none; z-index: 0; }
+
+  /* HEADER */
+  header { position: relative; z-index: 10; padding: 26px 40px 20px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg,rgba(0,212,170,.05) 0%,transparent 100%); }
+  .header-inner { max-width: 1600px; margin: 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .system-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,212,170,.1); border: 1px solid rgba(0,212,170,.3); border-radius: 4px; padding: 4px 12px; font-family: 'JetBrains Mono',monospace; font-size: 11px; color: var(--accent-green); letter-spacing: 1px; text-transform: uppercase; }
+  .pulse-dot { width: 7px; height: 7px; background: var(--accent-green); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+  h1 { font-size: 29px; font-weight: 700; letter-spacing: -.5px; line-height: 1.1; margin-top: 7px; }
+  h1 span { color: var(--accent-green); }
+  .subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .header-stats { display: flex; gap: 20px; flex-wrap: wrap; }
+  .hstat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .hstat-val { font-family: 'JetBrains Mono',monospace; font-size: 22px; font-weight: 500; color: var(--accent-green); }
+  .hstat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+
+  /* LAYOUT */
+  .container { position: relative; z-index: 5; max-width: 1600px; margin: 0 auto; padding: 26px 40px; }
+
+  /* TABS */
+  .nav-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 24px; padding: 5px; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border); }
+  .nav-tab { padding: 8px 15px; border-radius: 8px; border: none; background: transparent; color: var(--text-secondary); font-family: 'Space Grotesk',sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s; white-space: nowrap; }
+  .nav-tab:hover { background: var(--bg-card); color: var(--text-primary); }
+  .nav-tab.active { background: var(--bg-card-hover); color: var(--accent-green); border: 1px solid rgba(0,212,170,.25); }
+
+  /* SECTIONS */
+  .section { display: none; animation: fadeIn .3s ease; }
+  .section.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* TIMELINE */
+  .timeline-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; font-size: 12px; color: var(--text-secondary); }
+  .timeline-date { font-family: 'JetBrains Mono',monospace; color: var(--accent-green); font-weight: 500; }
+  .tl-sep { color: var(--text-muted); }
+
+  /* STAT CARDS */
+  .stat-cards { display: grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap: 12px; margin-bottom: 22px; }
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .stat-val { font-family: 'JetBrains Mono',monospace; font-size: 24px; font-weight: 600; color: var(--accent-green); line-height: 1; margin-bottom: 5px; }
+  .stat-label { font-size: 11px; color: var(--text-secondary); }
+
+  /* MAIN CHART */
+  .chart-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 20px; }
+  .chart-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+  .chart-title { font-size: 17px; font-weight: 600; }
+  .chart-subtitle { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+  .chart-controls { display: flex; gap: 7px; }
+  .ctrl-btn { padding: 6px 13px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-secondary); font-family: 'Space Grotesk',sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; }
+  .ctrl-btn:hover,.ctrl-btn.active { background: rgba(0,212,170,.1); color: var(--accent-green); border-color: rgba(0,212,170,.3); }
+  .chart-wrapper { position: relative; height: 280px; }
+
+  /* OVERVIEW GRID */
+  .overview-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 13px; }
+  .group-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all .25s; position: relative; overflow: hidden; }
+  .group-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--card-color,var(--accent-green)); transform:scaleX(0); transform-origin:left; transition:transform .3s; }
+  .group-card:hover { background:var(--bg-card-hover); border-color:var(--border-bright); transform:translateY(-2px); }
+  .group-card:hover::before { transform:scaleX(1); }
+  .card-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .card-icon { font-size:20px; width:38px; height:38px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.05); border-radius:8px; }
+  .card-title { font-size:14px; font-weight:600; }
+  .card-count { font-size:11px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
+  .channel-list { display:flex; flex-direction:column; gap:5px; }
+  .channel-item { display:flex; justify-content:space-between; align-items:center; padding:6px 9px; background:var(--bg-secondary); border-radius:7px; cursor:pointer; transition:all .15s; border:1px solid transparent; }
+  .channel-item:hover { border-color:var(--border-bright); background:var(--bg-card-hover); }
+  .channel-name { font-size:11px; color:var(--text-primary); font-weight:500; }
+  .channel-stats { display:flex; align-items:center; gap:5px; }
+  .channel-unit { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-muted); background:var(--bg-primary); padding:2px 5px; border-radius:3px; }
+  .channel-avg { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent-green); font-weight:500; min-width:50px; text-align:right; }
+
+  /* MINI CHART CARDS */
+  .channels-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:16px; }
+  .mini-chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; transition:all .2s; cursor:pointer; position:relative; }
+  .mini-chart-card:hover { border-color:var(--card-color,var(--accent-green)); background:var(--bg-card-hover); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.3); }
+  .click-hint { position:absolute; top:10px; right:10px; background:rgba(0,212,170,.1); border:1px solid rgba(0,212,170,.25); color:var(--accent-green); font-size:10px; padding:3px 8px; border-radius:5px; opacity:0; transition:opacity .2s; font-weight:500; }
+  .mini-chart-card:hover .click-hint { opacity:1; }
+  .mini-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .mini-name { font-size:13px; font-weight:600; color:var(--text-primary); line-height:1.3; padding-right:8px; }
+  .mini-unit { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--accent-green); background:var(--glow-green); padding:3px 8px; border-radius:4px; white-space:nowrap; flex-shrink:0; }
+  .mini-stats-row { display:flex; gap:12px; margin-bottom:9px; flex-wrap:wrap; }
+  .mini-stat { display:flex; flex-direction:column; gap:2px; }
+  .mini-stat-val { font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:500; }
+  .mini-stat-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.3px; }
+  .mini-chart-wrapper { height:75px; position:relative; }
+  .mini-date-range { margin-top:7px; font-size:10px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
+
+  /* ══════════════════════════════════════════
+     MODAL — DETAYLI PANEL
+  ══════════════════════════════════════════ */
+  .modal-overlay { position:fixed; inset:0; z-index:1000; background:rgba(5,8,20,.88); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:16px; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
+  .modal { background:var(--bg-card); border:1px solid var(--border-bright); border-radius:20px; width:100%; max-width:1080px; max-height:92vh; overflow-y:auto; padding:30px; position:relative; transform:scale(.94) translateY(20px); transition:transform .32s cubic-bezier(.34,1.56,.64,1); box-shadow:0 40px 80px rgba(0,0,0,.65),0 0 0 1px rgba(0,212,170,.07); }
+  .modal-overlay.open .modal { transform:scale(1) translateY(0); }
+  .modal-close { position:absolute; top:18px; right:18px; width:34px; height:34px; border-radius:50%; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-secondary); font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+  .modal-close:hover { background:var(--bg-card-hover); color:var(--text-primary); border-color:var(--border-bright); }
+
+  /* Modal header */
+  .modal-header { margin-bottom:20px; padding-right:46px; }
+  .modal-sys-label { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+  .modal-title { font-size:24px; font-weight:700; color:var(--text-primary); }
+  .modal-sub { font-size:13px; color:var(--text-secondary); margin-top:5px; }
+
+  /* Modal meta */
+  .modal-meta { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .meta-chip { display:flex; align-items:center; gap:6px; background:var(--bg-secondary); border:1px solid var(--border); padding:7px 12px; border-radius:8px; font-size:12px; color:var(--text-secondary); }
+  .meta-chip strong { color:var(--text-primary); font-family:'JetBrains Mono',monospace; }
+
+  /* Modal stats */
+  .modal-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:9px; margin-bottom:20px; }
+  .modal-stat { background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:13px 14px; }
+  .modal-stat-val { font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:600; line-height:1; margin-bottom:5px; }
+  .modal-stat-label { font-size:11px; color:var(--text-muted); }
+
+  /* Date range picker */
+  .date-range-bar { display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:12px 16px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:12px; margin-bottom:18px; }
+  .date-range-bar label { font-size:12px; color:var(--text-secondary); white-space:nowrap; font-weight:500; }
+  .date-input { background:var(--bg-card); border:1px solid var(--border); color:var(--text-primary); padding:7px 11px; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:12px; cursor:pointer; outline:none; }
+  .date-input:focus { border-color:var(--accent-green); }
+  .date-sep { color:var(--text-muted); font-size:14px; }
+  .quick-btns { display:flex; gap:5px; flex-wrap:wrap; }
+  .quick-btn { padding:6px 11px; border-radius:7px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); font-size:11px; font-weight:500; cursor:pointer; transition:all .15s; font-family:'Space Grotesk',sans-serif; }
+  .quick-btn:hover,.quick-btn.active { background:rgba(0,212,170,.1); color:var(--accent-green); border-color:rgba(0,212,170,.3); }
+  .apply-btn { padding:7px 15px; border-radius:8px; border:1px solid rgba(0,212,170,.4); background:rgba(0,212,170,.12); color:var(--accent-green); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:'Space Grotesk',sans-serif; margin-left:auto; }
+  .apply-btn:hover { background:rgba(0,212,170,.22); }
+
+  /* Modal chart */
+  .modal-chart-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
+  .modal-chart-label { font-size:13px; font-weight:600; color:var(--text-secondary); }
+  .gran-btns { display:flex; gap:5px; }
+  .modal-chart-wrapper { position:relative; height:300px; margin-bottom:18px; }
+
+  /* Modal table */
+  .table-label { font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:9px; }
+  .modal-table-wrapper { max-height:200px; overflow-y:auto; border-radius:10px; border:1px solid var(--border); }
+  .modal-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .modal-table thead tr { background:var(--bg-secondary); position:sticky; top:0; z-index:2; }
+  .modal-table th { padding:9px 13px; text-align:left; color:var(--text-muted); font-weight:500; border-bottom:1px solid var(--border); }
+  .modal-table td { padding:7px 13px; border-bottom:1px solid rgba(30,45,80,.4); font-family:'JetBrains Mono',monospace; }
+  .modal-table tr:hover td { background:var(--bg-card-hover); }
+
+  /* INFO */
+  .info-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; margin-bottom:22px; }
+  .info-card { background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:13px; }
+  .info-card-title { font-size:13px; font-weight:600; margin-bottom:5px; }
+  .info-card-desc { font-size:11px; color:var(--text-secondary); line-height:1.5; }
+  .info-card-count { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-muted); margin-top:4px; }
+
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background:var(--border-bright); border-radius:3px; }
+
+  footer { position:relative; z-index:5; border-top:1px solid var(--border); padding:16px 40px; text-align:center; font-size:11px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
+
+  @media(max-width:768px) {
+    header,.container { padding:16px; }
+    h1 { font-size:19px; }
+    .modal { padding:18px; }
+    .channels-grid,.overview-grid { grid-template-columns:1fr; }
+    .chat-window { width:calc(100vw - 20px); right:10px; bottom:10px; height:70vh; }
+  }
+
+  /* ══════════════════════════════════
+     CHATBOT WIDGET
+  ══════════════════════════════════ */
+  .chat-toggle {
+    position:fixed; bottom:24px; right:24px; z-index:900;
+    background:linear-gradient(135deg,#00d4aa,#0984e3); color:#fff;
+    border:none; border-radius:50px; padding:14px 22px;
+    font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:600;
+    cursor:pointer; box-shadow:0 6px 24px rgba(0,212,170,.35);
+    transition:all .25s; display:flex; align-items:center; gap:8px;
+  }
+  .chat-toggle:hover { transform:translateY(-3px) scale(1.03); box-shadow:0 10px 32px rgba(0,212,170,.45); }
+  .chat-toggle.active { border-radius:50%; padding:14px; }
+
+  .chat-window {
+    position:fixed; bottom:90px; right:24px; z-index:901;
+    width:400px; height:520px; max-height:75vh;
+    background:var(--bg-secondary); border:1px solid var(--border-bright);
+    border-radius:18px; display:flex; flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.55),0 0 0 1px rgba(0,212,170,.08);
+    opacity:0; pointer-events:none; transform:translateY(20px) scale(.95);
+    transition:all .3s cubic-bezier(.34,1.3,.64,1);
+  }
+  .chat-window.open { opacity:1; pointer-events:all; transform:translateY(0) scale(1); }
+
+  .chat-header-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 18px; border-bottom:1px solid var(--border);
+    background:linear-gradient(135deg,rgba(0,212,170,.08),rgba(9,132,227,.06));
+    border-radius:18px 18px 0 0; flex-shrink:0;
+  }
+  .chat-header-bar .chat-h-title { font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; }
+  .chat-header-bar .chat-h-close {
+    width:28px; height:28px; border-radius:50%; border:1px solid var(--border);
+    background:var(--bg-card); color:var(--text-secondary); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:13px; transition:all .15s;
+  }
+  .chat-header-bar .chat-h-close:hover { background:var(--bg-card-hover); color:var(--text-primary); }
+
+  .chat-messages {
+    flex:1; overflow-y:auto; padding:16px; display:flex;
+    flex-direction:column; gap:10px;
+  }
+  .chat-msg {
+    max-width:85%; padding:10px 14px; border-radius:14px;
+    font-size:13px; line-height:1.55; word-wrap:break-word;
+    white-space:pre-wrap; animation:fadeIn .25s ease;
+  }
+  .chat-msg.bot {
+    align-self:flex-start; background:var(--bg-card);
+    border:1px solid var(--border); color:var(--text-primary); border-bottom-left-radius:4px;
+  }
+  .chat-msg.user {
+    align-self:flex-end; background:linear-gradient(135deg,rgba(0,212,170,.18),rgba(0,212,170,.08));
+    border:1px solid rgba(0,212,170,.25); color:var(--accent-green); border-bottom-right-radius:4px;
+  }
+  .chat-msg.typing { color:var(--text-muted); font-style:italic; }
+  .chat-msg.typing .dots span {
+    animation:blink 1.4s infinite both; font-size:18px;
+  }
+  .chat-msg.typing .dots span:nth-child(2) { animation-delay:.2s; }
+  .chat-msg.typing .dots span:nth-child(3) { animation-delay:.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
+
+  .chat-input-area {
+    display:flex; gap:8px; padding:12px 14px;
+    border-top:1px solid var(--border); flex-shrink:0;
+  }
+  .chat-input {
+    flex:1; background:var(--bg-card); border:1px solid var(--border);
+    border-radius:10px; padding:10px 14px; color:var(--text-primary);
+    font-family:'Space Grotesk',sans-serif; font-size:13px; outline:none;
+    transition:border-color .15s;
+  }
+  .chat-input::placeholder { color:var(--text-muted); }
+  .chat-input:focus { border-color:var(--accent-green); }
+  .chat-send {
+    width:40px; height:40px; border-radius:10px; border:none;
+    background:linear-gradient(135deg,#00d4aa,#0984e3); color:#fff;
+    font-size:16px; cursor:pointer; transition:all .15s;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .chat-send:hover { transform:scale(1.08); }
+  .chat-send:disabled { opacity:.4; cursor:default; transform:none; }
+
+  .chat-clear {
+    background:none; border:1px solid var(--border); color:var(--text-muted);
+    font-size:10px; padding:3px 8px; border-radius:5px; cursor:pointer;
+    font-family:'JetBrains Mono',monospace; transition:all .15s;
+  }
+  .chat-clear:hover { border-color:var(--accent-red); color:var(--accent-red); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     MODAL
+═══════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeBg(event)">
+ <div class="modal">
+  <button class="modal-close" onclick="closeModal()">✕</button>
+
+  <div class="modal-header">
+   <div class="modal-sys-label" id="m-syslabel">PRIVA VP9508 · SENSOR</div>
+   <div class="modal-title" id="m-title">—</div>
+   <div class="modal-sub" id="m-sub">—</div>
+  </div>
+
+  <div class="modal-meta">
+   <div class="meta-chip">📏 Vahid: <strong id="m-unit">—</strong></div>
+   <div class="meta-chip">🗂️ Qrup: <strong id="m-group">—</strong></div>
+   <div class="meta-chip">📅 Başlanğıc: <strong id="m-from">—</strong></div>
+   <div class="meta-chip">📅 Son: <strong id="m-to">—</strong></div>
+   <div class="meta-chip">📊 Cəmi ölçüm: <strong id="m-cnt">—</strong></div>
+  </div>
+
+  <div class="modal-stats">
+   <div class="modal-stat">
+    <div class="modal-stat-val" id="m-avg" style="color:var(--accent-green)">—</div>
+    <div class="modal-stat-label">Ortalama</div>
+   </div>
+   <div class="modal-stat">
+    <div class="modal-stat-val" id="m-min" style="color:var(--accent-blue)">—</div>
+    <div class="modal-stat-label">Minimum</div>
+   </div>
+   <div class="modal-stat">
+    <div class="modal-stat-val" id="m-max" style="color:var(--accent-red)">—</div>
+    <div class="modal-stat-label">Maksimum</div>
+   </div>
+   <div class="modal-stat">
+    <div class="modal-stat-val" id="m-rng" style="color:var(--accent-purple)">—</div>
+    <div class="modal-stat-label">Aralıq</div>
+   </div>
+   <div class="modal-stat">
+    <div class="modal-stat-val" id="m-fcnt" style="color:var(--text-secondary);font-size:16px">—</div>
+    <div class="modal-stat-label">Seçilmiş dövr</div>
+   </div>
+  </div>
+
+  <!-- DATE RANGE -->
+  <div class="date-range-bar">
+   <label>📅 Tarix aralığı:</label>
+   <input type="date" class="date-input" id="d-from" onchange="onDateChange()">
+   <span class="date-sep">→</span>
+   <input type="date" class="date-input" id="d-to" onchange="onDateChange()">
+   <div class="quick-btns">
+    <button class="quick-btn" onclick="qRange(30,this)">30 gün</button>
+    <button class="quick-btn" onclick="qRange(90,this)">90 gün</button>
+    <button class="quick-btn" onclick="qRange(180,this)">6 ay</button>
+    <button class="quick-btn" onclick="qRange(365,this)">1 il</button>
+    <button class="quick-btn active" onclick="qRange(0,this)">Hamısı</button>
+   </div>
+  </div>
+
+  <!-- CHART -->
+  <div class="modal-chart-top">
+   <div class="modal-chart-label">Zaman seriyası — <span id="gran-label">aylıq ortalama</span></div>
+   <div class="gran-btns">
+    <button class="ctrl-btn active" id="g-monthly" onclick="setGran('monthly',this)">Aylıq</button>
+    <button class="ctrl-btn" id="g-daily" onclick="setGran('daily',this)">Gündəlik</button>
+   </div>
+  </div>
+  <div class="modal-chart-wrapper">
+   <canvas id="modal-chart"></canvas>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-label">📋 Cədvəl (<span id="tbl-gran">aylıq</span>)</div>
+  <div class="modal-table-wrapper">
+   <table class="modal-table">
+    <thead>
+     <tr>
+      <th>Tarix</th>
+      <th>Dəyər (ortalama)</th>
+      <th>Min işarəsi</th>
+      <th>Max işarəsi</th>
+     </tr>
+    </thead>
+    <tbody id="modal-tbody"></tbody>
+   </table>
+  </div>
+ </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     HEADER
+═══════════════════════════════════ -->
+<header>
+ <div class="header-inner">
+  <div>
+   <div class="system-badge"><span class="pulse-dot"></span>PRIVA VP9508 · İSTİXANA İQLİM SİSTEMİ</div>
+   <h1>İstixana Sensor <span>Analitikası</span></h1>
+   <div class="subtitle">Priva Integro / Connext Datalog — 6+ İllik Real Sensor Datası (2020–2026)</div>
+  </div>
+  <div class="header-stats">
+   <div class="hstat"><div class="hstat-val">371</div><div class="hstat-label">Kanal</div></div>
+   <div class="hstat"><div class="hstat-val">{{ "{:,}".format(total_records) }}</div><div class="hstat-label">Ölçüm</div></div>
+   <div class="hstat"><div class="hstat-val">6.3 il</div><div class="hstat-label">Dövr</div></div>
+   <div class="hstat"><div class="hstat-val">5 dəq</div><div class="hstat-label">Interval</div></div>
+  </div>
+ </div>
+</header>
+
+<!-- ═══════════════════════════════════
+     MAIN
+═══════════════════════════════════ -->
+<div class="container">
+
+ <div class="timeline-info">
+  <span>📅</span>
+  <span class="timeline-date">25 Yanvar 2020</span>
+  <span class="tl-sep">→</span>
+  <span class="timeline-date">25 Aprel 2026</span>
+  <span class="tl-sep">·</span>
+  <span>371 kanal · ~288 ölçüm/gün · 5 dəq interval · .dlt/.dof (zlib binary)</span>
+ </div>
+
+ <div class="nav-tabs">
+  <button class="nav-tab active" onclick="showSec('overview',this)">🏠 Ümumi</button>
+  <button class="nav-tab" onclick="showSec('weather',this)">🌤️ Xarici Hava</button>
+  <button class="nav-tab" onclick="showSec('greenhouse',this)">🌡️ İstixana</button>
+  <button class="nav-tab" onclick="showSec('co2',this)">🌿 CO₂</button>
+  <button class="nav-tab" onclick="showSec('heating',this)">🔥 Isıtma</button>
+  <button class="nav-tab" onclick="showSec('water',this)">💧 Su / EC / pH</button>
+  <button class="nav-tab" onclick="showSec('energy',this)">⚡ Enerji</button>
+  <button class="nav-tab" onclick="showSec('info',this)">📋 Sistem</button>
+ </div>
+
+ <!-- OVERVIEW -->
+ <div id="section-overview" class="section active">
+  <div class="stat-cards">
+   <div class="stat-card"><div class="stat-val">371</div><div class="stat-label">Sensor kanali (temperatur, rütubət, CO₂, qaz, su...)</div></div>
+   <div class="stat-card"><div class="stat-val">~167K</div><div class="stat-label">Hər kanal üçün ölçüm sayı (588 günlük bloklar)</div></div>
+   <div class="stat-card"><div class="stat-val">-18°C</div><div class="stat-label">Xarici minimum temperatur (qış aylarında)</div></div>
+   <div class="stat-card"><div class="stat-val">50°C</div><div class="stat-label">İstixana maksimum temperaturu (yay aylarında)</div></div>
+   <div class="stat-card"><div class="stat-val">1484</div><div class="stat-label">Ən yüksək CO₂ konsentrasiyası (ppm)</div></div>
+   <div class="stat-card"><div class="stat-val">6.3 il</div><div class="stat-label">Ümumi verilənlər dövrü (Jan 2020 → Apr 2026)</div></div>
+  </div>
+  <div class="chart-panel">
+   <div class="chart-panel-header">
+    <div>
+     <div class="chart-title">Xarici Temperatur — 6 İllik Trend</div>
+     <div class="chart-subtitle">Kanal 0: OUTSIDE TEMP · °C · 160,401 ölçüm · Priva VP9508:WEATHER</div>
+    </div>
+    <div class="chart-controls">
+     <button class="ctrl-btn active" onclick="mainView('monthly',this)">Aylıq</button>
+     <button class="ctrl-btn" onclick="mainView('daily',this)">Gündəlik</button>
+    </div>
+   </div>
+   <div class="chart-wrapper"><canvas id="main-chart"></canvas></div>
+  </div>
+  <div class="overview-grid" id="overview-cards"></div>
+ </div>
+
+ <!-- GROUP SECTIONS -->
+ <div id="section-weather" class="section"><div class="channels-grid" id="weather-charts"></div></div>
+ <div id="section-greenhouse" class="section"><div class="channels-grid" id="greenhouse-charts"></div></div>
+ <div id="section-co2" class="section"><div class="channels-grid" id="co2-charts"></div></div>
+ <div id="section-heating" class="section"><div class="channels-grid" id="heating-charts"></div></div>
+ <div id="section-water" class="section"><div class="channels-grid" id="water-charts"></div></div>
+ <div id="section-energy" class="section"><div class="channels-grid" id="energy-charts"></div></div>
+
+ <!-- INFO -->
+ <div id="section-info" class="section">
+  <div class="chart-panel">
+   <div class="chart-panel-header">
+    <div>
+     <div class="chart-title">📋 Sistem Məlumatları — Priva VP9508</div>
+     <div class="chart-subtitle">Texniki analiz: fayl strukturu, sensor növləri, bütün kanallar</div>
+    </div>
+   </div>
+   <div style="display:grid;gap:24px">
+    <div>
+     <h3 style="font-size:13px;color:var(--accent-green);margin-bottom:9px;font-family:'JetBrains Mono',monospace">🗂️ Fayl Strukturu</h3>
+     <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:2.1">
+      <div><span style="color:var(--accent-green)">reg_loginfodetails.dlt/.dof</span><span style="color:var(--text-muted);margin-left:10px"># Kanal metadata indeksi</span></div>
+      <div><span style="color:var(--accent-green)">reg_loginfo.dlt/.dof</span><span style="color:var(--text-muted);margin-left:10px">       # 371 kanal — adlar, vahidlər</span></div>
+      <div><span style="color:var(--accent-green)">reg_datalog.dlt/.dof</span><span style="color:var(--text-muted);margin-left:10px">       # 218,284 blok · 231MB sensor data</span></div>
+      <div><span style="color:var(--accent-green)">Reg.ODB</span><span style="color:var(--text-muted);margin-left:10px">                    # Priva object database</span></div>
+      <div style="color:var(--text-muted);margin-top:5px"># Format: Magic 0xBC0DBB0D · Rekord: int32(ts)+double(val)=12bayt · zlib sıxılmış</div>
+     </div>
+    </div>
+    <div>
+     <h3 style="font-size:13px;color:#f7a741;margin-bottom:9px">🔬 Sensor Kateqoriyaları</h3>
+     <div class="info-grid" id="sensor-type-list"></div>
+    </div>
+    <div>
+     <h3 style="font-size:13px;color:var(--accent-blue);margin-bottom:9px">📊 Bütün Kanalların Siyahısı (klikləyib qrafiki açın)</h3>
+     <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border)">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+       <thead>
+        <tr style="background:var(--bg-secondary);color:var(--text-secondary);text-align:left">
+         <th style="padding:9px 11px;border-bottom:1px solid var(--border)">ID</th>
+         <th style="padding:9px 11px;border-bottom:1px solid var(--border)">Sensor Adı</th>
+         <th style="padding:9px 11px;border-bottom:1px solid var(--border)">Vahid</th>
+         <th style="padding:9px 11px;border-bottom:1px solid var(--border)">Qrup</th>
+         <th style="padding:9px 11px;border-bottom:1px solid var(--border)">Ölçüm</th>
+         <th style="padding:9px 11px;border-bottom:1px solid var(--border)">Min</th>
+         <th style="padding:9px 11px;border-bottom:1px solid var(--border)">Max</th>
+         <th style="padding:9px 11px;border-bottom:1px solid var(--border)">Ort.</th>
+        </tr>
+       </thead>
+       <tbody id="channel-table-body"></tbody>
+      </table>
+     </div>
+    </div>
+   </div>
+  </div>
+ </div>
+
+</div>
+
+<footer>PRIVA VP9508 GREENHOUSE CLIMATE CONTROL · 2020-01-25 → 2026-04-25 · 371 CHANNELS · ~6.5M RECORDS</footer>
+
+<!-- ═══════════════════════════════════
+     CHATBOT WIDGET
+═══════════════════════════════════ -->
+<button class="chat-toggle" id="chat-toggle" onclick="toggleChat()">
+  🤖 <span id="chat-toggle-text">AI Köməkçi</span>
+</button>
+<div class="chat-window" id="chat-window">
+  <div class="chat-header-bar">
+    <div class="chat-h-title">🌿 AI Fermer Köməkçisi</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="chat-clear" onclick="clearChat()">🗑️ Təmizlə</button>
+      <button class="chat-h-close" onclick="toggleChat()">✕</button>
+    </div>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-input-area">
+    <input class="chat-input" id="chat-input" placeholder="Sual yazın: Salam, vəziyyət necədir, bu gün suvarım?" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}">
+    <button class="chat-send" id="chat-send" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<script>
+// ─── GLOBALS ───
+let SD = null; // sensor data
+const CI = {};  // chart instances
+let curId = null, curGran = 'monthly';
+const built = new Set();
+
+const GC = { weather:'#00d4aa', greenhouse_temp:'#ff6b6b', humidity:'#4ecdc4', heating:'#f7b731', ventilation:'#a29bfe', co2:'#6c5ce7', curtain:'#fd79a8', water:'#0984e3', water_quality:'#00b894', energy:'#e17055' };
+const GL = { weather:'Xarici Hava', greenhouse_temp:'İstixana Temp.', humidity:'Rütubət', heating:'Isıtma', ventilation:'Ventilyasiya', co2:'CO₂ Sistemi', curtain:'Pərdə', water:'Su Temp.', water_quality:'Su Keyfiyyəti', energy:'Enerji/Qaz' };
+const GD = {
+ weather:      { label:'Xarici Hava',     icon:'🌤️', ids:['0','1','2','4','5','7'] },
+ greenhouse_temp:{ label:'İstixana Temp.', icon:'🌡️', ids:['10','11','12','13'] },
+ humidity:     { label:'Rütubət',          icon:'💧', ids:['14','15','16','17'] },
+ heating:      { label:'Isıtma',           icon:'🔥', ids:['22','23','333','334','357','358','359'] },
+ ventilation:  { label:'Ventilyasiya',     icon:'💨', ids:['26','27'] },
+ co2:          { label:'CO₂',              icon:'🌿', ids:['290','292','293'] },
+ curtain:      { label:'Pərdə',            icon:'🎭', ids:['282','283'] },
+ water:        { label:'Su Temp.',         icon:'🌊', ids:['150','151'] },
+ water_quality:{ label:'Su Keyfiyyəti',   icon:'⚗️', ids:['365','366','367','368','369','370'] },
+ energy:       { label:'Enerji',           icon:'⚡', ids:['324','325','328'] },
+};
+const SG = { weather:['weather'], greenhouse:['greenhouse_temp','humidity','ventilation','curtain'], co2:['co2'], heating:['heating'], water:['water','water_quality'], energy:['energy'] };
+
+// ─── LOAD ───
+async function init() {
+ const r = await fetch('/static/data.json');
+ SD = await r.json();
+ buildMainChart();
+ buildOverview();
+}
+
+// ─── NAVIGATION ───
+function showSec(name, btn) {
+ document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+ document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+ document.getElementById('section-' + name).classList.add('active');
+ if (btn) btn.classList.add('active');
+ const groups = SG[name];
+ if (groups && !built.has(name)) { built.add(name); buildGroupCharts(groups, name + '-charts'); }
+ if (name === 'info') buildInfo();
+}
+
+// ─── MAIN CHART ───
+function buildMainChart() {
+ if (!SD || !SD['0']) return;
+ renderLine('main-chart', SD['0'].monthly, 'Xarici Temperatur (°C)', '#00d4aa');
+}
+function mainView(type, btn) {
+ document.querySelectorAll('.chart-controls .ctrl-btn').forEach(b => b.classList.remove('active'));
+ if (btn) btn.classList.add('active');
+ renderLine('main-chart', SD['0'][type === 'monthly' ? 'monthly' : 'daily'], 'Xarici Temperatur (°C)', '#00d4aa');
+}
+
+// ─── OVERVIEW ───
+function buildOverview() {
+ const c = document.getElementById('overview-cards');
+ c.innerHTML = '';
+ for (const [gk, gi] of Object.entries(GD)) {
+  const ids = gi.ids.filter(id => SD[id]);
+  if (!ids.length) continue;
+  const color = GC[gk] || '#00d4aa';
+  const el = document.createElement('div');
+  el.className = 'group-card';
+  el.style.setProperty('--card-color', color);
+  el.innerHTML = `
+   <div class="card-header">
+    <div class="card-icon">${gi.icon}</div>
+    <div><div class="card-title">${gi.label}</div><div class="card-count">${ids.length} kanal</div></div>
+   </div>
+   <div class="channel-list">
+    ${ids.map(id => { const ch = SD[id]; return `
+     <div class="channel-item" onclick="openModal('${id}')">
+      <span class="channel-name">${ch.name}</span>
+      <div class="channel-stats">
+       <span class="channel-unit">${ch.unit}</span>
+       <span class="channel-avg">${ch.avg_val.toFixed(1)}</span>
+      </div>
+     </div>`; }).join('')}
+   </div>`;
+  c.appendChild(el);
+ }
+}
+
+// ─── GROUP MINI CHARTS ───
+function buildGroupCharts(groups, cid) {
+ const c = document.getElementById(cid);
+ c.innerHTML = '';
+ groups.flatMap(g => GD[g] ? GD[g].ids : []).forEach(id => {
+  if (!SD[id]) return;
+  const ch = SD[id];
+  const color = GC[ch.group] || '#00d4aa';
+  const canvasId = 'mini-' + id;
+  const card = document.createElement('div');
+  card.className = 'mini-chart-card';
+  card.style.setProperty('--card-color', color);
+  card.onclick = () => openModal(id);
+  card.innerHTML = `
+   <span class="click-hint">🔍 Detallı bax</span>
+   <div class="mini-header">
+    <div class="mini-name">${ch.name}</div>
+    <div class="mini-unit">${ch.unit}</div>
+   </div>
+   <div class="mini-stats-row">
+    <div class="mini-stat"><div class="mini-stat-val" style="color:${color}">${ch.avg_val.toFixed(1)}</div><div class="mini-stat-label">Ort.</div></div>
+    <div class="mini-stat"><div class="mini-stat-val" style="color:#ff6b6b">${ch.max_val.toFixed(1)}</div><div class="mini-stat-label">Max</div></div>
+    <div class="mini-stat"><div class="mini-stat-val" style="color:#4d8ef0">${ch.min_val.toFixed(1)}</div><div class="mini-stat-label">Min</div></div>
+    <div class="mini-stat"><div class="mini-stat-val" style="color:var(--text-muted);font-size:12px">${(ch.total_records/1000).toFixed(0)}K</div><div class="mini-stat-label">Ölçüm</div></div>
+   </div>
+   <div class="mini-chart-wrapper"><canvas id="${canvasId}"></canvas></div>
+   <div class="mini-date-range">📅 ${ch.date_from} → ${ch.date_to}</div>
+  `;
+  c.appendChild(card);
+  setTimeout(() => renderMini(canvasId, ch.monthly, color), 80);
+ });
+}
+
+// ─────────────────────────────────────────
+// MODAL
+// ─────────────────────────────────────────
+function openModal(id) {
+ if (!SD || !SD[id]) return;
+ curId = id; curGran = 'monthly';
+ const ch = SD[id];
+ const color = GC[ch.group] || '#00d4aa';
+
+ // Header
+ document.getElementById('m-syslabel').textContent = `PRIVA VP9508 · KANAL ${id} · ${(ch.group||'').replace('_',' ').toUpperCase()}`;
+ document.getElementById('m-title').innerHTML = `<span style="color:${color}">${ch.name}</span>`;
+ document.getElementById('m-sub').textContent = `Sensor ID: ${id} · Sistem: VP9508 · Ölçü vahidi: ${ch.unit} · Qrup: ${GL[ch.group]||ch.group}`;
+
+ // Meta
+ document.getElementById('m-unit').textContent = ch.unit;
+ document.getElementById('m-group').textContent = GL[ch.group] || ch.group;
+ document.getElementById('m-from').textContent = ch.date_from;
+ document.getElementById('m-to').textContent = ch.date_to;
+ document.getElementById('m-cnt').textContent = ch.total_records.toLocaleString();
+
+ // Stats
+ document.getElementById('m-avg').textContent = ch.avg_val.toFixed(2) + ' ' + ch.unit;
+ document.getElementById('m-min').textContent = ch.min_val.toFixed(2) + ' ' + ch.unit;
+ document.getElementById('m-max').textContent = ch.max_val.toFixed(2) + ' ' + ch.unit;
+ document.getElementById('m-rng').textContent = (ch.max_val - ch.min_val).toFixed(2) + ' ' + ch.unit;
+
+ // Dates
+ document.getElementById('d-from').value = ch.date_from;
+ document.getElementById('d-from').min   = ch.date_from;
+ document.getElementById('d-from').max   = ch.date_to;
+ document.getElementById('d-to').value   = ch.date_to;
+ document.getElementById('d-to').min     = ch.date_from;
+ document.getElementById('d-to').max     = ch.date_to;
+
+ // Reset UI
+ document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+ document.querySelectorAll('.quick-btn').forEach(b => { if (b.textContent==='Hamısı') b.classList.add('active'); });
+ document.querySelectorAll('.gran-btns .ctrl-btn').forEach(b => b.classList.remove('active'));
+ document.getElementById('g-monthly').classList.add('active');
+ document.getElementById('gran-label').textContent = 'aylıq ortalama';
+ document.getElementById('tbl-gran').textContent = 'aylıq';
+
+ renderModal();
+ document.getElementById('modal-overlay').classList.add('open');
+ document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+ document.getElementById('modal-overlay').classList.remove('open');
+ document.body.style.overflow = '';
+}
+function closeBg(e) { if (e.target.id === 'modal-overlay') closeModal(); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function renderModal() {
+ if (!curId || !SD[curId]) return;
+ const ch = SD[curId];
+ const color = GC[ch.group] || '#00d4aa';
+ const fromV = document.getElementById('d-from').value;
+ const toV   = document.getElementById('d-to').value;
+ const raw   = curGran === 'monthly' ? ch.monthly : ch.daily;
+ const filt  = filterDate(raw, fromV, toV);
+
+ document.getElementById('m-fcnt').textContent = Object.keys(filt).length + (curGran==='monthly' ? ' ay' : ' gün');
+ renderLine('modal-chart', filt, `${ch.name} (${ch.unit})`, color);
+ buildTable(filt, ch.unit);
+}
+
+function filterDate(data, f, t) {
+ const res = {};
+ for (const [k,v] of Object.entries(data)) {
+  if (f && k.substring(0, f.length) < f) continue;
+  if (t && k.substring(0, t.length) > t) continue;
+  res[k] = v;
+ }
+ return res;
+}
+
+function buildTable(data, unit) {
+ const tb = document.getElementById('modal-tbody');
+ tb.innerHTML = '';
+ const ents = Object.entries(data);
+ if (!ents.length) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:18px">Bu dövr üçün verilən yoxdur</td></tr>'; return; }
+ const vals = ents.map(([,v]) => v);
+ const mn = Math.min(...vals), mx = Math.max(...vals);
+ ents.forEach(([d,v]) => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+   <td style="color:var(--text-secondary)">${d}</td>
+   <td style="color:var(--accent-green);font-weight:500">${v.toFixed(2)} ${unit}</td>
+   <td style="color:#4d8ef0">${v===mn ? '▼ '+v.toFixed(2) : '—'}</td>
+   <td style="color:#ff6b6b">${v===mx ? '▲ '+v.toFixed(2) : '—'}</td>
+  `;
+  tb.appendChild(tr);
+ });
+}
+
+function setGran(g, btn) {
+ curGran = g;
+ document.querySelectorAll('.gran-btns .ctrl-btn').forEach(b => b.classList.remove('active'));
+ if (btn) btn.classList.add('active');
+ document.getElementById('gran-label').textContent = g === 'monthly' ? 'aylıq ortalama' : 'gündəlik ortalama';
+ document.getElementById('tbl-gran').textContent = g === 'monthly' ? 'aylıq' : 'gündəlik';
+ renderModal();
+}
+
+function onDateChange() {
+ document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+ renderModal();
+}
+
+function qRange(days, btn) {
+ document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+ if (btn) btn.classList.add('active');
+ if (!curId || !SD[curId]) return;
+ const ch = SD[curId];
+ if (days === 0) {
+  document.getElementById('d-from').value = ch.date_from;
+  document.getElementById('d-to').value   = ch.date_to;
+ } else {
+  const t = new Date(ch.date_to);
+  const f = new Date(t); f.setDate(f.getDate() - days);
+  const clamped = new Date(Math.max(f, new Date(ch.date_from)));
+  document.getElementById('d-from').value = clamped.toISOString().split('T')[0];
+  document.getElementById('d-to').value   = ch.date_to;
+ }
+ renderModal();
+}
+
+// ─── CHART HELPERS ───
+function renderLine(cid, data, label, color) {
+ const ctx = document.getElementById(cid);
+ if (!ctx) return;
+ if (CI[cid]) CI[cid].destroy();
+ const labels = Object.keys(data), vals = Object.values(data);
+ CI[cid] = new Chart(ctx, {
+  type: 'line',
+  data: { labels, datasets: [{ label, data: vals, borderColor: color, backgroundColor: color+'18', borderWidth: 2, pointRadius: labels.length > 150 ? 0 : labels.length > 60 ? 2 : 4, pointHoverRadius: 6, tension: 0.35, fill: true }] },
+  options: {
+   responsive: true, maintainAspectRatio: false,
+   plugins: {
+    legend: { display: false },
+    tooltip: { mode:'index', intersect:false, backgroundColor:'#131d35', borderColor:'#2a3f6f', borderWidth:1, titleColor:'#7a8ab8', bodyColor:'#e8eeff', callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(2)}` } }
+   },
+   scales: {
+    x: { grid:{ color:'#1e2d5066', lineWidth:.5 }, ticks:{ color:'#4a5a88', font:{family:'JetBrains Mono',size:10}, maxTicksLimit:20, maxRotation:40 } },
+    y: { grid:{ color:'#1e2d5066', lineWidth:.5 }, ticks:{ color:'#4a5a88', font:{family:'JetBrains Mono',size:10} } }
+   },
+   animation: { duration: 450 },
+   interaction: { mode:'nearest', axis:'x', intersect:false }
+  }
+ });
+}
+
+function renderMini(cid, data, color) {
+ const ctx = document.getElementById(cid);
+ if (!ctx || CI[cid]) return;
+ CI[cid] = new Chart(ctx, {
+  type: 'line',
+  data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), borderColor: color, backgroundColor: color+'18', borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: true }] },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{enabled:false} }, scales:{ x:{display:false}, y:{display:false} }, animation:{duration:300} }
+ });
+}
+
+// ─── INFO ───
+function buildInfo() {
+ const el = document.getElementById('sensor-type-list');
+ if (el && !el.children.length) {
+  const types = [
+   {name:'Temperatur Sensorları', desc:'Xarici, istixana (4 bölmə), istilik borusu, qazan, su temperaturu', icon:'🌡️', count:'15+', color:'#ff6b6b'},
+   {name:'Rütubət (RH) Sensorları', desc:'Nisbi rütubət 4 bölmə — həm ölçüm həm hesablama', icon:'💧', count:'8', color:'#4ecdc4'},
+   {name:'Radiasiya Sensorları', desc:'Solar radiasiya W/m², radiasiya cəmi J/cm², PAR µmol/s/m²', icon:'☀️', count:'6', color:'#f7b731'},
+   {name:'CO₂ Sistemi', desc:'CO₂ konsentrasiyası ppm, dozaj nəzarəti, ümumi dozaj kg/ha', icon:'🌿', count:'4', color:'#6c5ce7'},
+   {name:'Ventilyasiya', desc:'Küləyin tərəfi (lee/wind), açılma faizi, min/max hesablamalar', icon:'💨', count:'12', color:'#a29bfe'},
+   {name:'Pərdə Sistemi', desc:'4 bölmə üçün pərdə mövqeyi (%) və funksiya statusu', icon:'🎭', count:'8', color:'#fd79a8'},
+   {name:'Su Keyfiyyəti', desc:'EC mS/cm, pH, axın sürəti m³/h, hesablama + ölçüm', icon:'⚗️', count:'6', color:'#00b894'},
+   {name:'İsıtma Şəbəkəsi', desc:'Isıtma borusu temperaturu, lazım olan güc, aktual güc, bufer', icon:'🔥', count:'20+', color:'#e17055'},
+   {name:'Qaz / Enerji', desc:'Qaz sərfi m³/h, qaz cəmi, maksimal qaz limiti', icon:'⚡', count:'5', color:'#f7b731'},
+   {name:'Hava Stansiyası', desc:'Külək sürəti, istiqaməti, yağış, dolu, don sensorları', icon:'🌧️', count:'5', color:'#74b9ff'},
+   {name:'Avtomatik Isıtma', desc:'12 avtomatik zona üçün set/ölçüm/hesablama', icon:'⚙️', count:'60+', color:'#636e72'},
+   {name:'Manifold / Boiler', desc:'Qazan temp., dolum, boşaltma, CO₂ paylanma kapasitəsi', icon:'🏗️', count:'8', color:'#0984e3'},
+  ];
+  el.innerHTML = types.map(s => `<div class="info-card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:17px">${s.icon}</span><div class="info-card-title" style="color:${s.color}">${s.name}</div></div><div class="info-card-desc">${s.desc}</div><div class="info-card-count">${s.count} kanal</div></div>`).join('');
+ }
+
+ const tb = document.getElementById('channel-table-body');
+ if (tb && !tb.children.length && SD) {
+  for (const [id, ch] of Object.entries(SD)) {
+   const c = GC[ch.group] || '#7a8ab8';
+   const tr = document.createElement('tr');
+   tr.style.cssText = 'border-bottom:1px solid rgba(30,45,80,.4);cursor:pointer';
+   tr.onclick = () => openModal(id);
+   tr.onmouseover = () => tr.style.background = 'var(--bg-card-hover)';
+   tr.onmouseout  = () => tr.style.background = '';
+   tr.innerHTML = `
+    <td style="padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted)">${id}</td>
+    <td style="padding:7px 11px;font-size:12px;font-weight:500;color:var(--text-primary)">${ch.name}</td>
+    <td style="padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent-green)">${ch.unit}</td>
+    <td style="padding:7px 11px"><span style="background:${c}22;color:${c};border:1px solid ${c}44;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600">${GL[ch.group]||ch.group}</span></td>
+    <td style="padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary)">${ch.total_records.toLocaleString()}</td>
+    <td style="padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#4d8ef0">${ch.min_val.toFixed(1)}</td>
+    <td style="padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#ff6b6b">${ch.max_val.toFixed(1)}</td>
+    <td style="padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;color:${c}">${ch.avg_val.toFixed(2)}</td>
+   `;
+   tb.appendChild(tr);
+  }
+ }
+}
+
+window.addEventListener('load', init);
+
+// ─────────────────────────────────────────
+// CHATBOT
+// ─────────────────────────────────────────
+let chatOpen = false;
+let chatHistory = JSON.parse(localStorage.getItem('agroChatHistory') || '[]');
+let chatSending = false;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-window').classList.toggle('open', chatOpen);
+  const tog = document.getElementById('chat-toggle');
+  const txt = document.getElementById('chat-toggle-text');
+  if (chatOpen) {
+    tog.classList.add('active'); txt.textContent = '✕';
+    if (!document.getElementById('chat-messages').children.length) {
+      restoreChatHistory();
+      if (!chatHistory.length) addBotMsg('Salam! 🌿 Mən AgroTech AI Fermer Köməkçisiyəm. Mənimlə həm normal danışa, həm də sahənin sensor göstəriciləri, qrafiklər, suvarma və risklər haqqında sual verə bilərsən.', false);
+    }
+    setTimeout(() => document.getElementById('chat-input').focus(), 300);
+  } else {
+    tog.classList.remove('active'); txt.textContent = 'AI Köməkçi';
+  }
+}
+
+function addBotMsg(text, save=true) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg bot'; el.textContent = text;
+  document.getElementById('chat-messages').appendChild(el);
+  scrollChat();
+  if (save) { chatHistory.push({role:'bot',text:text}); saveChatHistory(); }
+}
+
+function addUserMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg user'; el.textContent = text;
+  document.getElementById('chat-messages').appendChild(el);
+  scrollChat();
+  chatHistory.push({role:'user',text:text}); saveChatHistory();
+}
+
+function showTyping() {
+  const el = document.createElement('div');
+  el.className = 'chat-msg bot typing'; el.id = 'typing-indicator';
+  el.innerHTML = 'Cavab hazırlanır <span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+  document.getElementById('chat-messages').appendChild(el);
+  scrollChat();
+}
+function hideTyping() { const t = document.getElementById('typing-indicator'); if(t) t.remove(); }
+
+function scrollChat() {
+  const c = document.getElementById('chat-messages');
+  setTimeout(() => c.scrollTop = c.scrollHeight, 50);
+}
+
+async function sendChat() {
+  if (chatSending) return;
+  const inp = document.getElementById('chat-input');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+  addUserMsg(msg);
+  chatSending = true;
+  document.getElementById('chat-send').disabled = true;
+  showTyping();
+  try {
+    const last10 = chatHistory.slice(-10);
+    const res = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({message:msg, history:last10})
+    });
+    const data = await res.json();
+    hideTyping();
+    if (data.response) { addBotMsg(data.response); }
+    else if (data.error) { addBotMsg('⚠️ Xəta: ' + data.error); }
+  } catch(e) {
+    hideTyping();
+    addBotMsg('⚠️ Serverlə əlaqə qurmaq mümkün olmadı. Yenidən cəhd edin.');
+  }
+  chatSending = false;
+  document.getElementById('chat-send').disabled = false;
+  inp.focus();
+}
+
+function saveChatHistory() {
+  try { localStorage.setItem('agroChatHistory', JSON.stringify(chatHistory.slice(-50))); } catch(e) {}
+}
+
+function restoreChatHistory() {
+  const container = document.getElementById('chat-messages');
+  chatHistory.forEach(entry => {
+    const el = document.createElement('div');
+    el.className = 'chat-msg ' + entry.role;
+    el.textContent = entry.text;
+    container.appendChild(el);
+  });
+  scrollChat();
+}
+
+function clearChat() {
+  chatHistory = [];
+  localStorage.removeItem('agroChatHistory');
+  document.getElementById('chat-messages').innerHTML = '';
+  addBotMsg('Söhbət təmizləndi. Yeni sual verə bilərsiniz! 🌿', false);
+}
+</script>
+</body>
+</html>
